@@ -1,6 +1,5 @@
 class SecretsExplain():
-    _order = ['declarative', 'templates', 'sops', '1password', 'bitwarden', 'hashcorsecrets:
-              ...
+    _order = ['declarative', 'templates', 'sops', '1password', 'bitwarden', 'hashcorsecrets']
     def explain_secrets(self, detail_level='basic'):
         return {
             'concept': 'Secret keys management.',
