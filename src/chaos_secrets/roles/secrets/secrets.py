@@ -1,8 +1,6 @@
 import os
 from pyinfra.api.operation import add_op
-from pyinfra.operations import server, files
-from pyinfra.facts.server import Command
-from pyinfra.facts.files import File
+from pyinfra.operations import files
 
 import sys
 
@@ -48,6 +46,7 @@ def handleSsh(var):
 
 def handleTemplating(
     state,
+    choboloPath,
     vars: list[str],
     src: str,
     dest: str,
@@ -58,6 +57,7 @@ def handleTemplating(
 ) -> None:
 
     varDict: dict = {}
+
     for var in vars:
         if not var in decryptedContent:
             print(f"{var} Not found in secrets file, aborting.")
@@ -66,8 +66,10 @@ def handleTemplating(
         varDict[var] = decryptedContent[var]
 
     try:
-        templateDir = os.path.dirname(src)
-        templateName = os.path.basename(src)
+        choboloDir = os.path.dirname(choboloPath)
+        fullTemplatePath = os.path.join(choboloDir, src)
+        templateDir = os.path.dirname(fullTemplatePath)
+        templateName = os.path.basename(fullTemplatePath)
         env = Environment(loader=FileSystemLoader(templateDir), autoescape=escape)
         template = env.get_template(templateName)
         renderedTemplate = template.render(varDict)
@@ -107,7 +109,7 @@ def run_secrets_logic(state, host, choboloPath, skip, secFileO, sopsFileO):
     match secrets.get('sec_mode'):
         case 'sops':
             decryptedContent = loadSops(secFile, sopsFile)
-            if not isinstance(decryptedContent, dict):
+            if not isinstance(decryptedContent, (dict, DictConfig)):
                 print("ERROR: Decrypted file is not a dict.")
                 return
 
@@ -121,13 +123,14 @@ def run_secrets_logic(state, host, choboloPath, skip, secFileO, sopsFileO):
                 owner: str = t.get('owner')
                 mode: int = t.get('mode')
                 vars: list[str] = t.get('vars')
-                escape: bool = t.get('escape')
+                escape: bool = t.get('escape', False)
 
-                if not all([src, dest, owner, mode, vars, escape]):
+                required=[src, dest, owner, mode, vars]
+                if any(k is None for k in required):
                     print(f'Secrets handling is a very dangerous role. The template {src} will not be loaded if\nnot all keys have been passed.')
                     continue
 
-                handleTemplating(state, vars, src, dest, owner, mode, decryptedContent, escape)
+                handleTemplating(state, choboloPath, vars, src, dest, owner, mode, decryptedContent, escape)
         case '1pass':
             print('1pass functionality still not implemented.')
             return
