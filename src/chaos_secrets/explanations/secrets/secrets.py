@@ -70,7 +70,7 @@ secrets:
             'what': 'It means you describe the "desired end state" of your secrets in a configuration file (the Ch-obolo file), and the tool (Ch-aOS) handles the steps required to achieve that state. You declare *what* you want, not *how* to do it.',
             'why': 'It makes your configuration reproducible, version-controllable, and much easier to understand. Instead of following a manual script of steps (copy, paste, set permissions), you have a single source of truth that describes where each secret should be.',
             'how': 'You define the `secrets` block in your Ch-obolo. The tool reads this "declaration," decrypts the secrets in memory, renders the templates, and applies the files to the system. If you remove an item from the list, the tool knows it\'s no longer desired and can clean it up in the future.',
-            'security': "The secrets file is a file _outside_ of your Ch-obolo, in the same directory as it, your Ch-obolo _points_ to it. Either way, you should always commit everything inside of your Ch-obolo directory (DO NOT COMMIT UNECRYPTED SECRETS FILES.)",
+            'security': "The secrets file is a file *outside* of your Ch-obolo, in the same directory as it, your Ch-obolo *points* to it. Either way, you should always commit everything inside of your Ch-obolo directory (DO NOT COMMIT UNECRYPTED SECRETS FILES.)",
             'equivalent': """# The imperative (non-declarative) approach would be:
 # 1. Decrypt the file manually
 sops -d secrets.yml > /tmp/temp_secrets.yml
