@@ -18,6 +18,7 @@ class SecretsExplain():
       to: /path/where/I/want/my/secrets
       owner: dex
       mode: 0600
+      escape: False
       vars:
         - var-that-exists-in-my-sec_file
         - var-that-exists-in-my-sec_file2
