@@ -9,7 +9,7 @@ import sys
 from jinja2 import Environment, FileSystemLoader
 import subprocess
 
-from omegaconf import DictConfig, ListConfig, OmegaConf as oc
+from omegaconf import OmegaConf as oc
 from io import StringIO
 
 def loadSops(secFile, secSopsO):
@@ -81,7 +81,6 @@ def handleTemplating(
 
     add_op(
         state,
-        host,
         files.put,
         name=f"Deploy secret template to {dest}",
         src=StringIO(renderedTemplate),
@@ -118,13 +117,15 @@ def run_secrets_logic(state, host, choboloPath, skip, secFileO, sopsFileO):
         print("WARNING: missing either sec_file, sops_file or secrets.templates, exiting.")
         return
 
-    decryptedContent = loadSops(secFile, sopsFile)
-    if not decryptedContent:
-        print('Could not decrypt secrets file content.')
-        return
 
     match secrets.get('sec_mode'):
         case 'sops':
+            decryptedContent = loadSops(secFile, sopsFile)
+
+            if not decryptedContent:
+                print('Could not decrypt secrets file content.')
+                return
+
             for t in templates:
                 src: str = t.get('from')
                 dest: str = t.get('to')
