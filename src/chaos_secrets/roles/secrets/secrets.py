@@ -1,4 +1,5 @@
 import os
+import sys
 from pyinfra.api.operation import add_op
 from pyinfra.operations import files
 
@@ -60,8 +61,8 @@ def handleTemplating(
 
     for var in vars:
         if not var in decryptedContent:
-            print(f"{var} Not found in secrets file, aborting.")
-            return
+            print(f"FATAL: {var} Not found in secrets file, aborting.")
+            sys.exit(1)
 
         varDict[var] = decryptedContent[var]
 
@@ -100,6 +101,9 @@ def run_secrets_logic(state, host, choboloPath, skip, secFileO, sopsFileO):
     secFile = secFileO if secFileO else secrets.get('sec_file')
     sopsFile = sopsFileO if sopsFileO else secrets.get('sec_sops')
     templates = secrets.get('templates')
+    if not isinstance(templates, list):
+        print("ERROR: temoplates must be a list. Aborting.")
+        sys.exit(1)
 
     if not all([secFile, sopsFile, templates]):
         print("WARNING: missing either sec_file, sops_file or secrets.templates, exiting.")
@@ -110,8 +114,8 @@ def run_secrets_logic(state, host, choboloPath, skip, secFileO, sopsFileO):
         case 'sops':
             decryptedContent = loadSops(secFile, sopsFile)
             if not isinstance(decryptedContent, (dict, DictConfig)):
-                print("ERROR: Decrypted file is not a dict.")
-                return
+                print("FATAL: Decrypted file is not a dict.")
+                sys.exit(1)
 
             if not decryptedContent:
                 print('Could not decrypt secrets file content.')
