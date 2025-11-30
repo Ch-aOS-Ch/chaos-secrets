@@ -9,7 +9,7 @@ import sys
 from jinja2 import Environment, FileSystemLoader
 import subprocess
 
-from omegaconf import OmegaConf as oc
+from omegaconf import DictConfig, OmegaConf as oc
 from io import StringIO
 
 def loadSops(secFile, secSopsO):
@@ -46,13 +46,13 @@ def handleSsh(var):
 
 def handleTemplating(
     state,
-    host,
     vars: list[str],
     src: str,
     dest: str,
     owner: str,
     mode: int,
-    decryptedContent
+    decryptedContent,
+    escape: bool,
 ) -> None:
 
     try:
@@ -64,15 +64,15 @@ def handleTemplating(
     varDict: dict = {}
     for var in vars:
         if not var in decryptedContent:
-            print(f"{var} Not found in secrets file.")
-            continue
+            print(f"{var} Not found in secrets file, aborting.")
+            return
 
         varDict[var] = decryptedContent[var]
 
     try:
         templateDir = os.path.dirname(src)
         templateName = os.path.basename(src)
-        env = Environment(loader=FileSystemLoader(templateDir), autoescape=True)
+        env = Environment(loader=FileSystemLoader(templateDir), autoescape=escape)
         template = env.get_template(templateName)
         renderedTemplate = template.render(varDict)
     except Exception as e:
@@ -86,16 +86,9 @@ def handleTemplating(
         src=StringIO(renderedTemplate),
         dest=dest,
         user=owner,
-        mode=str(mode)
+        mode=str(mode) if isinstance(mode, int) else mode
     )
 
-
-SECRET_HANDLERS = {
-    'sops': loadSops,
-    '1pass': loadOp,
-    'bitwarden': loadBw,
-    'hashcorp': loadVault,
-}
 
 def run_secrets_logic(state, host, choboloPath, skip, secFileO, sopsFileO):
 
@@ -104,9 +97,6 @@ def run_secrets_logic(state, host, choboloPath, skip, secFileO, sopsFileO):
 
     if not secrets:
         print(f"No secrets declared, exiting.")
-        return
-    if not secrets.get('sec_mode') in SECRET_HANDLERS:
-        print(f'Unsupported secret handler {secrets.get("sec_mode")}')
         return
 
     secFile = secFileO if secFileO else secrets.get('sec_file')
@@ -121,6 +111,9 @@ def run_secrets_logic(state, host, choboloPath, skip, secFileO, sopsFileO):
     match secrets.get('sec_mode'):
         case 'sops':
             decryptedContent = loadSops(secFile, sopsFile)
+            if not isinstance(decryptedContent, dict):
+                print("ERROR: Decrypted file is not a dict.")
+                return
 
             if not decryptedContent:
                 print('Could not decrypt secrets file content.')
@@ -132,12 +125,13 @@ def run_secrets_logic(state, host, choboloPath, skip, secFileO, sopsFileO):
                 owner: str = t.get('owner')
                 mode: int = t.get('mode')
                 vars: list[str] = t.get('vars')
+                escape: bool = t.get('escape')
 
-                if not all([src, dest, owner, mode, vars]):
+                if not all([src, dest, owner, mode, vars, escape]):
                     print(f'Secrets handling is a very dangerous role. The template {src} will not be loaded if\nnot all keys have been passed.')
                     continue
 
-                handleTemplating(state, host, vars, src, dest, owner, mode, decryptedContent)
+                handleTemplating(state, vars, src, dest, owner, mode, decryptedContent, escape)
         case '1pass':
             print('1pass functionality still not implemented.')
             return
