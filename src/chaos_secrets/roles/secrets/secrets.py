@@ -20,8 +20,10 @@ def loadSops(secFile, secSopsO):
             text=True,
             check=True
         )
-        decryptedContent=result.stdout
-        return decryptedContent
+        try:
+            return oc.load(StringIO(result.stdout))
+        except Exception:
+            return None
     except FileNotFoundError:
         print(f"WARNING!!!! 'sops' command not found. Is it installed?")
         sys.exit(1)
@@ -54,12 +56,6 @@ def handleTemplating(
     decryptedContent,
     escape: bool,
 ) -> None:
-
-    try:
-        decryptedContent = oc.load(StringIO(decryptedContent))
-    except Exception as e:
-        print(f"ERROR: could not load decrypted file content: {e}")
-        return
 
     varDict: dict = {}
     for var in vars:
