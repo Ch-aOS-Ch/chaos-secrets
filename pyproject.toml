@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "chaos-secrets"
+version = "0.1.0"
+description = "Secret manager plugin for Ch-aOS"
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "pyinfra",
+    "omegaconf",
+    'jinja2'
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+
+[project.entry-points."chaos.roles"]
+secrets = "chaos_secrets.roles.secrets.secrets:run_secrets_logic"
+
+[project.entry-points."chaos.aliases"]
+secs = "secrets"
+
+[project.entry-points."chaos.explain"]
+secrets = "chaos_secrets.explanations.secrets.secrets:SecretsExplain"
