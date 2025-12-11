@@ -74,6 +74,8 @@ def handleTemplating(
         env = Environment(loader=FileSystemLoader(templateDir), autoescape=escape)
         template = env.get_template(templateName)
         renderedTemplate = template.render(varDict)
+
+        dest = os.path.expanduser(f'~/{dest}')
     except Exception as e:
         print(f'ERROR: Could not load template {src}: {e}')
         return
