@@ -134,6 +134,14 @@ def run_secrets_logic(state, host, choboloPath, skip, secFileO, sopsFileO):
                     print(f'Secrets handling is a very dangerous role. The template {src} will not be loaded if\nnot all keys have been passed.')
                     continue
 
+                if dest.startswith('/') or '..' in dest:
+                    print("Invalid pathing. Avoid using '..' and do not ever use / at the start.")
+                    continue
+
+                if src.startswith('/') or '..' in src:
+                    print("Invalid pathing. Avoid using '..' and do not ever use / at the start.")
+                    continue
+
                 handleTemplating(state, choboloPath, vars, src, dest, owner, mode, decryptedContent, escape)
         case '1pass':
             print('1pass functionality still not implemented.')
