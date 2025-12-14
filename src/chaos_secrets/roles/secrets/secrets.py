@@ -167,7 +167,7 @@ def handleReconcile(host, state, choboloPath, skip):
         mode='0600'
     )
 
-def run_secrets_logic(state, host, choboloPath, skip, secFileO, sopsFileO):
+def run_secrets_logic(state, host, choboloPath, skip, secFileO, sopsFileO, args):
 
     handleReconcile(host, state, choboloPath, skip)
 
