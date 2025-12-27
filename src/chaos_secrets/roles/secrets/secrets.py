@@ -5,47 +5,10 @@ from pyinfra.operations import files
 from pyinfra.facts.server import Command
 import yaml
 
-import sys
-
 from jinja2 import Environment, FileSystemLoader
-import subprocess
 
 from omegaconf import DictConfig, OmegaConf as oc
 from io import StringIO
-
-def loadSops(secFile, secSopsO):
-    try:
-        result=subprocess.run(
-            ['sops', '--config', secSopsO, '-d', secFile],
-            capture_output=True,
-            text=True,
-            check=True
-        )
-        try:
-            return oc.load(StringIO(result.stdout))
-        except Exception:
-            return None
-    except FileNotFoundError:
-        print(f"WARNING!!!! 'sops' command not found. Is it installed?")
-        sys.exit(1)
-    except subprocess.CalledProcessError as e:
-        print(f"warning!!!! Could not decrypt sops file {secFile}: {e.stderr}")
-        sys.exit(1)
-    except Exception as e:
-        print(f"WARNING!!!! An unexpected error occured with sops file {secFile}: {e}")
-        sys.exit(1)
-
-def loadBw(secFile):
-    ...
-
-def loadOp(secFile):
-    ...
-
-def loadVault(secFile):
-    ...
-
-def handleSsh(var):
-    ...
 
 def handleTemplating(
     state,
@@ -167,7 +130,7 @@ def handleReconcile(host, state, choboloPath, skip):
         mode='0600'
     )
 
-def run_secrets_logic(state, host, choboloPath, skip, secFileO, sopsFileO, args):
+def run_secrets_logic(state, host, choboloPath, skip, decrypted_secrets=None):
 
     handleReconcile(host, state, choboloPath, skip)
 
@@ -178,60 +141,46 @@ def run_secrets_logic(state, host, choboloPath, skip, secFileO, sopsFileO, args)
         print(f"No secrets declared, exiting.")
         return
 
-    secFile = secFileO if secFileO else secrets.get('sec_file')
-    sopsFile = sopsFileO if sopsFileO else secrets.get('sec_sops')
     templates = secrets.get('templates')
     if not isinstance(templates, list):
-        print("ERROR: temoplates must be a list. Aborting.")
+        print("ERROR: templates must be a list. Aborting.")
         sys.exit(1)
 
-    if not all([secFile, sopsFile, templates]):
-        print("WARNING: missing either sec_file, sops_file or secrets.templates, exiting.")
+    if not templates:
+        print("WARNING: missing secrets.templates, exiting.")
         return
 
+    decryptedContent = None
+    if decrypted_secrets:
+        try:
+            decryptedContent = oc.load(StringIO(decrypted_secrets))
+        except Exception as e:
+            print(f"FATAL: Decrypted secret content is not valid YAML/JSON: {e}")
+            sys.exit(1)
 
-    match secrets.get('sec_mode'):
-        case 'sops':
-            decryptedContent = loadSops(secFile, sopsFile)
-            if not isinstance(decryptedContent, (dict, DictConfig)):
-                print("FATAL: Decrypted file is not a dict.")
-                sys.exit(1)
+    if not decryptedContent or not isinstance(decryptedContent, (dict, DictConfig)):
+        print("FATAL: Decrypted file is not a dict or content is empty.")
+        sys.exit(1)
 
-            if not decryptedContent:
-                print('Could not decrypt secrets file content.')
-                return
+    for t in templates:
+        src: str = t.get('from')
+        dest: str = t.get('to')
+        owner: str = t.get('owner')
+        mode: int = t.get('mode')
+        vars: list[str] = t.get('vars')
+        escape: bool = t.get('escape', True)
 
-            for t in templates:
-                src: str = t.get('from')
-                dest: str = t.get('to')
-                owner: str = t.get('owner')
-                mode: int = t.get('mode')
-                vars: list[str] = t.get('vars')
-                escape: bool = t.get('escape', True)
+        required=[src, dest, owner, mode, vars]
+        if any(k is None for k in required):
+            print(f'Secrets handling is a very dangerous role. The template {src} will not be loaded if\nnot all keys have been passed.')
+            continue
 
-                required=[src, dest, owner, mode, vars]
-                if any(k is None for k in required):
-                    print(f'Secrets handling is a very dangerous role. The template {src} will not be loaded if\nnot all keys have been passed.')
-                    continue
+        if dest.startswith('/') or '..' in dest:
+            print("Invalid pathing. Avoid using '..' and do not ever use / at the start.")
+            continue
 
-                if dest.startswith('/') or '..' in dest:
-                    print("Invalid pathing. Avoid using '..' and do not ever use / at the start.")
-                    continue
+        if src.startswith('/') or '..' in src:
+            print("Invalid pathing. Avoid using '..' and do not ever use / at the start.")
+            continue
 
-                if src.startswith('/') or '..' in src:
-                    print("Invalid pathing. Avoid using '..' and do not ever use / at the start.")
-                    continue
-
-                handleTemplating(state, choboloPath, vars, src, dest, owner, mode, decryptedContent, escape)
-        case '1pass':
-            print('1pass functionality still not implemented.')
-            return
-        case 'bitwarden':
-            print('bitwarden functionality still not implemented')
-            return
-        case 'hashcorp':
-            print('hashcorp functionality still not implemented.')
-            return
-        case _:
-            print(f'Unexpected sec_mode: {secrets.get("sec_mode")}')
-            return
+        handleTemplating(state, choboloPath, vars, src, dest, owner, mode, decryptedContent, escape)
