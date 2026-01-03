@@ -27,4 +27,4 @@ secrets = "chaos_secrets.roles.secrets.secrets:run_secrets_logic"
 secs = "secrets"
 
 [project.entry-points."chaos.explain"]
-secrets = "chaos_secrets.explanations.secrets.secrets:SecretsExplain"
+sec_templates = "chaos_secrets.explanations.secrets.secrets:SecretsExplain"
