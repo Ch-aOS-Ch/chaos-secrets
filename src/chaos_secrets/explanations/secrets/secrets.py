@@ -1,6 +1,6 @@
 class SecretsExplain():
     _order = ['declarative', 'templates']
-    def explain_secrets(self, detail_level='basic'):
+    def explain_sec_templates(self, detail_level='basic'):
         return {
             'concept': 'Secret keys management.',
             'what': "'Secrets' are, as their name implies, secret values that require caution as to how they're handled, since one misstep with them could cause irreversible damage to companies or even people. Secret managers came as a solution to this problem, as they allow you to encrypt and decrypt all your keys safely.",
