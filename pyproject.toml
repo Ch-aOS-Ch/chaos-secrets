@@ -28,3 +28,6 @@ secs = "secrets"
 
 [project.entry-points."chaos.explain"]
 sec_templates = "chaos_secrets.explanations.secrets.secrets:SecretsExplain"
+
+[project.entry-points."chaos.keys"]
+secrets = "chaos_secrets.keys.secrets_keys:secrets_chobolo_keys"
