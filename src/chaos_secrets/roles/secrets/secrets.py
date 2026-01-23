@@ -2,16 +2,17 @@ import os
 import sys
 from pyinfra.api.operation import add_op
 from pyinfra.operations import files
-from pyinfra.facts.server import Command
+from pyinfra.facts.server import Command, Home
 import yaml
 
 from jinja2 import Environment, FileSystemLoader
 
-from omegaconf import DictConfig, OmegaConf as oc
+from omegaconf import DictConfig, OmegaConf as oc, ListConfig
 from io import StringIO
 
 def handleTemplating(
     state,
+    host,
     choboloPath,
     vars: list[str],
     src: str,
@@ -40,7 +41,14 @@ def handleTemplating(
         template = env.get_template(templateName)
         renderedTemplate = template.render(varDict)
 
-        dest = f'~/{dest}'
+        home_dir = host.get_fact(Home, user=owner)
+        if not home_dir:
+            print(f"ERROR: Could not determine home directory for user {owner}. Skipping template {src}.")
+            return
+
+        clean_dest = dest.lstrip('./')
+        final_dest = os.path.join(home_dir, clean_dest)
+
     except Exception as e:
         print(f'ERROR: Could not load template {src}: {e}')
         return
@@ -48,11 +56,11 @@ def handleTemplating(
     add_op(
         state,
         files.put,
-        name=f"Deploy secret template to {dest} for user {owner}",
+        name=f"Deploy secret template to {final_dest} for user {owner}",
         src=StringIO(renderedTemplate),
-        dest=dest,
+        dest=final_dest,
         user=owner,
-        mode=str(mode) if isinstance(mode, int) else mode,
+        mode=oct(mode)[2:] if isinstance(mode, int) else mode,
         _sudo=True,
         _sudo_user=owner
     )
@@ -142,7 +150,7 @@ def run_secrets_logic(state, host, choboloPath, skip, decrypted_secrets=None):
         return
 
     templates = secrets.get('templates')
-    if not isinstance(templates, list):
+    if not isinstance(templates, (list, ListConfig)):
         print("ERROR: templates must be a list. Aborting.")
         sys.exit(1)
 
@@ -183,4 +191,4 @@ def run_secrets_logic(state, host, choboloPath, skip, decrypted_secrets=None):
             print("Invalid pathing. Avoid using '..' and do not ever use / at the start.")
             continue
 
-        handleTemplating(state, choboloPath, vars, src, dest, owner, mode, decryptedContent, escape)
+        handleTemplating(state, host, choboloPath, vars, src, dest, owner, mode, decryptedContent, escape)
