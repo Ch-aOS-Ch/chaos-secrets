@@ -8,7 +8,7 @@ secrets_chobolo_keys = [
                     "owner": "",
                     "mode": "",
                     "escape": False,
-                    "vars": []
+                    "vars": [],
                 }
             ]
         }

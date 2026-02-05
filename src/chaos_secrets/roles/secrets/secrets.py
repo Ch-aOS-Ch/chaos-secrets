@@ -1,14 +1,15 @@
 import os
 import sys
-from pyinfra.api.operation import add_op
-from pyinfra.operations import files
-from pyinfra.facts.server import Command, Home
-import yaml
-
-from jinja2 import Environment, FileSystemLoader
-
-from omegaconf import DictConfig, OmegaConf as oc, ListConfig
 from io import StringIO
+
+import yaml
+from jinja2 import Environment, FileSystemLoader
+from omegaconf import DictConfig, ListConfig
+from omegaconf import OmegaConf as oc
+from pyinfra.api.operation import add_op
+from pyinfra.facts.server import Command, Home
+from pyinfra.operations import files
+
 
 def handleTemplating(
     state,
@@ -26,7 +27,7 @@ def handleTemplating(
     varDict: dict = {}
 
     for var in vars:
-        if not var in decryptedContent:
+        if var not in decryptedContent:
             print(f"FATAL: {var} Not found in secrets file, aborting.")
             sys.exit(1)
 
@@ -43,14 +44,16 @@ def handleTemplating(
 
         home_dir = host.get_fact(Home, user=owner)
         if not home_dir:
-            print(f"ERROR: Could not determine home directory for user {owner}. Skipping template {src}.")
+            print(
+                f"ERROR: Could not determine home directory for user {owner}. Skipping template {src}."
+            )
             return
 
-        clean_dest = dest.lstrip('./')
+        clean_dest = dest.lstrip("./")
         final_dest = os.path.join(home_dir, clean_dest)
 
     except Exception as e:
-        print(f'ERROR: Could not load template {src}: {e}')
+        print(f"ERROR: Could not load template {src}: {e}")
         return
 
     add_op(
@@ -62,43 +65,53 @@ def handleTemplating(
         user=owner,
         mode=oct(mode)[2:] if isinstance(mode, int) else mode,
         _sudo=True,
-        _sudo_user=owner
+        _sudo_user=owner,
     )
 
 
 def handleReconcile(host, state, choboloPath, skip):
 
     stateFile = "/var/lib/chaos/secrets.yml"
-    previous_state_content = host.get_fact(Command, f"cat {stateFile} || true", _sudo=True, _sudo_user='root')
-    previous_state = yaml.safe_load(previous_state_content) if previous_state_content else {"managed_files": []}
+    previous_state_content = host.get_fact(
+        Command, f"cat {stateFile} || true", _sudo=True, _sudo_user="root"
+    )
+    previous_state = (
+        yaml.safe_load(previous_state_content)
+        if previous_state_content
+        else {"managed_files": []}
+    )
 
     raw_previous_files = previous_state.get("managed_files", [])
     previously_managed_files = set()
 
     if raw_previous_files and isinstance(raw_previous_files[0], str):
-        print("WARNING: Old state file format detected. Reconciliation for user-specific files may not work correctly. The state will be updated to the new format.")
+        print(
+            "WARNING: Old state file format detected. Reconciliation for user-specific files may not work correctly. The state will be updated to the new format."
+        )
 
     elif raw_previous_files:
         for f_info in raw_previous_files:
-            previously_managed_files.add((f_info['path'], f_info['owner']))
+            previously_managed_files.add((f_info["path"], f_info["owner"]))
 
     ChObolo = oc.load(choboloPath)
-    secrets_config = ChObolo.get('secrets', {})
-    templates = secrets_config.get('templates', [])
+    secrets_config = ChObolo.get("secrets", {})
+    templates = secrets_config.get("templates", [])
 
     desired_managed_files = set()
     new_state_list_of_dicts = []
     for t in templates:
-        dest_path = t.get('to')
-        owner = t.get('owner')
+        dest_path = t.get("to")
+        owner = t.get("owner")
         if dest_path is None or owner is None:
             continue
-        if dest_path.startswith('/') or '..' in dest_path:
-            print(f"Invalid pathing in template destination: '{dest_path}'. Avoid using '..' and do not ever use / at the start. Skipping.")
+        if dest_path.startswith("/") or ".." in dest_path:
+            print(
+                f"Invalid pathing in template destination: '{dest_path}'. Avoid using '..' and do not ever use / at the start. Skipping."
+            )
             continue
 
         desired_managed_files.add((dest_path, owner))
-        new_state_list_of_dicts.append({'path': dest_path, 'owner': owner})
+        new_state_list_of_dicts.append({"path": dest_path, "owner": owner})
 
     files_to_remove = previously_managed_files - desired_managed_files
     if files_to_remove:
@@ -117,39 +130,51 @@ def handleReconcile(host, state, choboloPath, skip):
                     path=tilde_path,
                     present=False,
                     _sudo=True,
-                    _sudo_user=owner
+                    _sudo_user=owner,
                 )
     state_dir = os.path.dirname(stateFile)
 
-    sorted_new_state = sorted(new_state_list_of_dicts, key=lambda x: (x['owner'], x['path']))
+    sorted_new_state = sorted(
+        new_state_list_of_dicts, key=lambda x: (x["owner"], x["path"])
+    )
     new_state_data = {"managed_files": sorted_new_state}
     yaml_content = yaml.dump(new_state_data)
 
     add_op(
-        state, files.directory, name="Ensuring secrets state directory exists",
-        path=state_dir, present=True, user='root', _sudo=True, mode='0700'
+        state,
+        files.directory,
+        name="Ensuring secrets state directory exists",
+        path=state_dir,
+        present=True,
+        user="root",
+        _sudo=True,
+        mode="0700",
     )
 
     add_op(
-        state, files.put, name="Recording new secrets state",
+        state,
+        files.put,
+        name="Recording new secrets state",
         src=StringIO(yaml_content),
         dest=stateFile,
-        user='root', _sudo=True,
-        mode='0600'
+        user="root",
+        _sudo=True,
+        mode="0600",
     )
+
 
 def run_secrets_logic(state, host, choboloPath, skip, decrypted_secrets=None):
 
     handleReconcile(host, state, choboloPath, skip)
 
     ChObolo = oc.load(choboloPath)
-    secrets = ChObolo.get('secrets')
+    secrets = ChObolo.get("secrets")
 
     if not secrets:
-        print(f"No secrets declared, exiting.")
+        print("No secrets declared, exiting.")
         return
 
-    templates = secrets.get('templates')
+    templates = secrets.get("templates")
     if not isinstance(templates, (list, ListConfig)):
         print("ERROR: templates must be a list. Aborting.")
         sys.exit(1)
@@ -171,24 +196,41 @@ def run_secrets_logic(state, host, choboloPath, skip, decrypted_secrets=None):
         sys.exit(1)
 
     for t in templates:
-        src: str = t.get('from')
-        dest: str = t.get('to')
-        owner: str = t.get('owner')
-        mode: int = t.get('mode')
-        vars: list[str] = t.get('vars')
-        escape: bool = t.get('escape', True)
+        src: str = t.get("from")
+        dest: str = t.get("to")
+        owner: str = t.get("owner")
+        mode: int = t.get("mode")
+        vars: list[str] = t.get("vars")
+        escape: bool = t.get("escape", True)
 
-        required=[src, dest, owner, mode, vars]
+        required = [src, dest, owner, mode, vars]
         if any(k is None for k in required):
-            print(f'Secrets handling is a very dangerous role. The template {src} will not be loaded if\nnot all keys have been passed.')
+            print(
+                f"Secrets handling is a very dangerous role. The template {src} will not be loaded if\nnot all keys have been passed."
+            )
             continue
 
-        if dest.startswith('/') or '..' in dest:
-            print("Invalid pathing. Avoid using '..' and do not ever use / at the start.")
+        if dest.startswith("/") or ".." in dest:
+            print(
+                "Invalid pathing. Avoid using '..' and do not ever use / at the start."
+            )
             continue
 
-        if src.startswith('/') or '..' in src:
-            print("Invalid pathing. Avoid using '..' and do not ever use / at the start.")
+        if src.startswith("/") or ".." in src:
+            print(
+                "Invalid pathing. Avoid using '..' and do not ever use / at the start."
+            )
             continue
 
-        handleTemplating(state, host, choboloPath, vars, src, dest, owner, mode, decryptedContent, escape)
+        handleTemplating(
+            state,
+            host,
+            choboloPath,
+            vars,
+            src,
+            dest,
+            owner,
+            mode,
+            decryptedContent,
+            escape,
+        )
