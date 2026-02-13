@@ -122,7 +122,7 @@ def handleReconcile(host, state, choboloPath, skip):
         confirm = "y" if skip else input("\nIs This correct (Y/n)? ")
         if confirm.lower() in ["y", "yes", "", "s", "sim"]:
             for file_path, owner in files_to_remove:
-                tilde_path = f"~/{file_path}"
+                tilde_path = f"/home/{owner}/{file_path}"
                 add_op(
                     state,
                     files.file,
@@ -174,14 +174,10 @@ def run_secrets_logic(state, host, choboloPath, skip, decrypted_secrets=None):
         print("No secrets declared, exiting.")
         return
 
-    templates = secrets.get("templates")
+    templates = secrets.get("templates", [])
     if not isinstance(templates, (list, ListConfig)):
         print("ERROR: templates must be a list. Aborting.")
         sys.exit(1)
-
-    if not templates:
-        print("WARNING: missing secrets.templates, exiting.")
-        return
 
     decryptedContent = None
     if decrypted_secrets:
