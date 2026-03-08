@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "chaos-secrets"
-version = "0.1.1"
+version = "0.1.2"
 description = "Secret manager plugin for Ch-aOS"
 readme = "README.md"
 requires-python = ">=3.8"

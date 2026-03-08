@@ -49,7 +49,7 @@ def handleTemplating(
             )
             return
 
-        clean_dest = dest.lstrip("./")
+        clean_dest = dest[2:] if dest.startswith("./") else dest
         final_dest = os.path.join(home_dir, clean_dest)
 
     except Exception as e:
