@@ -31,7 +31,6 @@ class SecretsRole(Role):
     ) -> dict[str, Any]:
         context = {
             "chobolo": chobolo,
-            # Extracts the entire decrypted secrets dictionary which is stored under "."
             "secrets": secrets.get(".", {}),
         }
 
@@ -57,6 +56,7 @@ class SecretsRole(Role):
 
         if raw_previous_files and isinstance(raw_previous_files[0], str):
             pass
+
         elif raw_previous_files:
             for f_info in raw_previous_files:
                 previously_managed_files.add((f_info["path"], f_info["owner"]))
