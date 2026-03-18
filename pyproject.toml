@@ -21,7 +21,7 @@ where = ["src"]
 pythonpath = ["src"]
 
 [project.entry-points."chaos.roles"]
-secrets = "chaos_secrets.roles.secrets.secrets:run_secrets_logic"
+secrets = "chaos_secrets.roles.secrets.secrets:SecretsRole"
 
 [project.entry-points."chaos.aliases"]
 secs = "secrets"
