@@ -7,7 +7,6 @@ import yaml
 from chaos.lib.args.dataclasses import Delta, ResultPayload
 from chaos.lib.roles.role import Role
 from jinja2 import Environment, FileSystemLoader
-from pyinfra.api.operation import add_op
 from pyinfra.facts.server import Command, Home
 from pyinfra.operations import files
 
@@ -167,12 +166,9 @@ class SecretsRole(Role):
             clean_path = path[2:] if path.startswith("./") else path
             full_path = os.path.join(home_dir, clean_path)
 
-            add_op(
-                state,
-                files.file,
+            files.file(
                 name=f"Removing obsolete secret file: {full_path} for user {owner}",
                 path=full_path,
-                host=host,
                 present=False,
                 _sudo=True,
                 _sudo_user=owner,
@@ -212,12 +208,9 @@ class SecretsRole(Role):
                 clean_dest = dest[2:] if dest.startswith("./") else dest
                 final_dest = os.path.join(home_dir, clean_dest)
 
-                add_op(
-                    state,
-                    files.put,
+                files.put(
                     name=f"Deploy secret template to {final_dest} for user {owner}",
                     src=StringIO(rendered_template),
-                    host=host,
                     dest=final_dest,
                     user=owner,
                     mode=oct(mode)[2:] if isinstance(mode, int) else str(mode),
@@ -239,24 +232,18 @@ class SecretsRole(Role):
         new_state_data = {"managed_files": sorted_new_state}
         yaml_content = yaml.dump(new_state_data)
 
-        add_op(
-            state,
-            files.directory,
+        files.directory(
             name="Ensuring secrets state directory exists",
             path=state_dir,
-            host=host,
             present=True,
             user="root",
             _sudo=True,
             mode="0700",
         )
 
-        add_op(
-            state,
-            files.put,
+        files.put(
             name="Recording new secrets state",
             src=StringIO(yaml_content),
-            host=host,
             dest=state_file,
             user="root",
             _sudo=True,
